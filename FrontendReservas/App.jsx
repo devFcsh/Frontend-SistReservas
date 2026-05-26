@@ -7,22 +7,27 @@ const CARRERAS = [
   "Administración de empresas",
   "Arqueología",
   "Turismo",
-  "Otra carrera",
-  "Auditoría y gestión"
+  "Auditoría y gestión",
+  "Otra carrera"
 ];
 
+const EQUIPOS = Array.from({ length: 46 }, (_, index) => `Equipo ${index + 1}`);
+
 function App() {
-  // Estado para controlar la pestaña activa de la izquierda
-  const [vistaActiva, setVistaActiva] = useState('entrada'); // 'entrada' | 'salida' | 'admin'
-
-  // Estados para los formularios
-  const [entrada, setEntrada] = useState({ matricula: '', nombre: '', apellido: '', carrera: CARRERAS[0] });
+  const [vistaActiva, setVistaActiva] = useState('entrada'); 
+  const [entrada, setEntrada] = useState({ 
+    matricula: '', 
+    nombre: '', 
+    apellido: '', 
+    carrera: CARRERAS[0],
+    equipo: EQUIPOS[0] 
+  });
   const [matriculaSalida, setMatriculaSalida] = useState('');
-
-  // Estado para la burbuja de notificación pop-up (Toast)
   const [toast, setToast] = useState({ visible: false, mensaje: '', tipo: '' });
 
-  // Función para mostrar la burbuja y cerrarla automáticamente a los 5 segundos
+  // NUEVO ESTADO: Para almacenar los datos de la tabla en el panel de admin
+  const [datosTabla, setDatosTabla] = useState([]);
+
   const mostrarToast = (mensaje, tipo) => {
     setToast({ visible: true, mensaje, tipo });
     setTimeout(() => {
@@ -34,7 +39,6 @@ function App() {
     setEntrada({ ...entrada, [e.target.name]: e.target.value });
   };
 
-  // Petición de Entrada al Backend (Puerto 5128)
   const handleEntradaSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -46,7 +50,7 @@ function App() {
       const data = await response.json();
       if (response.ok) {
         mostrarToast(data.message, 'entrada-success'); 
-        setEntrada({ matricula: '', nombre: '', apellido: '', carrera: CARRERAS[0] });
+        setEntrada({ matricula: '', nombre: '', apellido: '', carrera: CARRERAS[0], equipo: EQUIPOS[0] });
       } else {
         mostrarToast("Error: " + (data.error || "Datos inválidos"), 'error');
       }
@@ -56,7 +60,6 @@ function App() {
     }
   };
 
-  // Petición de Salida al Backend (Puerto 5128)
   const handleSalidaSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -78,7 +81,26 @@ function App() {
     }
   };
 
-  // Función para extraer datos de MySQL y generar el archivo Excel
+  // NUEVA FUNCIÓN: Obtiene los datos del backend para mostrarlos en pantalla
+  const consultarDatosTabla = async () => {
+    try {
+      const response = await fetch('http://localhost:5128/api/reporte');
+      const datos = await response.json();
+
+      if (datos.length === 0) {
+        mostrarToast("No hay datos disponibles para mostrar", 'error');
+        setDatosTabla([]);
+        return;
+      }
+
+      setDatosTabla(datos);
+      mostrarToast("📋 Datos cargados correctamente", 'entrada-success');
+    } catch (error) {
+      console.error(error);
+      mostrarToast("Error al obtener los datos del servidor", 'error');
+    }
+  };
+
   const descargarExcel = async () => {
     try {
       const response = await fetch('http://localhost:5128/api/reporte');
@@ -94,9 +116,10 @@ function App() {
         'Apellido': row.apellido,
         'Matrícula': row.matricula,
         'Carrera': row.carrera,
+        'Equipo Asignado': row.equipo || 'N/A',
         'Hora de Inicio': row.hora_inicio,
         'Hora de Salida': row.hora_salida ? row.hora_salida : 'En uso',
-        'Tiempo de Uso (Minutos)': row.tiempo_promedio !== null ? `${row.tiempo_promedio} min` : 'N/A'
+        'Tiempo de Uso (Minutos)': row.tiempo_promedio !== null ? `${row.tiempo_promedio}` : 'N/A'
       }));
 
       const hoja = XLSX.utils.json_to_sheet(datosFormateados);
@@ -194,11 +217,20 @@ function App() {
                   </div>
                 </div>
                 
-                <div className="form-group">
-                  <label>Carrera</label>
-                  <select name="carrera" className="form-select" value={entrada.carrera} onChange={handleInputChange}>
-                    {CARRERAS.map((c, index) => <option key={index} value={c}>{c}</option>)}
-                  </select>
+                <div className="form-group-row">
+                  <div className="form-group">
+                    <label>Carrera</label>
+                    <select name="carrera" className="form-select" value={entrada.carrera} onChange={handleInputChange}>
+                      {CARRERAS.map((c, index) => <option key={index} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Equipo Asignado</label>
+                    <select name="equipo" className="form-select" value={entrada.equipo} onChange={handleInputChange}>
+                      {EQUIPOS.map((e, index) => <option key={index} value={e}>{e}</option>)}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="form-group">
@@ -241,11 +273,50 @@ function App() {
             <section className="admin-view-section single-view animate-fade-in">
               <h2>Panel de Administración</h2>
               <p>Generación de reportes detallados del uso del Laboratorio L002.</p>
-              <div className="admin-actions-container">
+              
+              {/* Contenedor de Botones alineados en fila */}
+              <div className="admin-actions-container" style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginBottom: '25px', flexWrap: 'wrap' }}>
+                <button onClick={consultarDatosTabla} className="btn btn-entrada btn-large">
+                  📋 Visualizar Tabla
+                </button>
                 <button onClick={descargarExcel} className="btn btn-excel btn-large">
-                  📊 Descargar Reporte Completo (Excel)
+                  📊 Descargar Reporte (Excel)
                 </button>
               </div>
+
+              {/* RENDERIZADO CONDICIONAL DE LA TABLA */}
+              {datosTabla.length > 0 && (
+                <div className="table-container animate-fade-in">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Nombre</th>
+                        <th>Apellido</th>
+                        <th>Matrícula</th>
+                        <th>Carrera</th>
+                        <th>Equipo</th>
+                        <th>Hora Inicio</th>
+                        <th>Hora Salida</th>
+                        <th>Tiempo (Min)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {datosTabla.map((row, index) => (
+                        <tr key={index}>
+                          <td>{row.nombre}</td>
+                          <td>{row.apellido}</td>
+                          <td>{row.matricula}</td>
+                          <td>{row.carrera}</td>
+                          <td>{row.equipo || 'N/A'}</td>
+                          <td>{row.hora_inicio}</td>
+                          <td>{row.hora_salida ? row.hora_salida : <span className="status-badge">En uso</span>}</td>
+                          <td>{row.tiempo_promedio !== null ? `${row.tiempo_promedio}` : 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
           )}
 
