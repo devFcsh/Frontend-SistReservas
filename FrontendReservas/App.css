@@ -2,24 +2,26 @@
    Estilos Globales y Paleta de Colores
    ========================================================================== */
 :root {
-  --bg-primary: #f2f2f2; 
+  --bg-primary: #f8fafc; 
   --bg-card: #ffffff;
   --text-main: #1a202c;
   --text-muted: #718096;
   
-
-  
-
   /* Colores de Botones y Estados */
   --entrada-color: #1d4ed8;       /* Azul */
   --entrada-hover: #223265;
-  --salida-color: #ffc107;        /* Verde */
-  --salida-hover: #e69500;       /* Amarillo */
+  --salida-color: #ffc107;        /* Amarillo */
+  --salida-hover: #e69500;        
   --excel-color: #475569;         /* Gris */
   --excel-hover: #334155; 
   
+  /* Sidebar Variables */
+  --sidebar-bg: #0f172a;          /* Slate Oscuro */
+  --sidebar-text: #94a3b8;
+  --sidebar-hover: #1e293b;
+
   --border-color: #e2e8f0;
-  --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
   --radius: 16px;
   --radius-inner: 8px;
   --transition: all 0.2s ease-in-out;
@@ -30,29 +32,98 @@ body {
   font-family: "Roboto", sans-serif !important;
   background-color: var(--bg-primary);
   color: var(--text-main);
-   display: flex; 
-  justify-content: center;
-  align-items: center;
   min-height: 100vh;
 }
 
-/* Estilos para el logo en la columna de salida */
-.logo-salida {
-  display: block;          /* Para que se comporte como un bloque y se centre */
-  max-width: 280px;        /* Ancho máximo para que no sea gigante */
-  height: auto;            /* Mantiene la proporción de aspecto */
-  margin: 30 auto 30px auto; /* Centrado horizontal, y 30px de espacio abajo */
-  opacity: 1;            
+/* Contenedor Principal en Fila Flex */
+.app-container {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
 
-
-
-
-.app-container {
-  width: 100%;
-  max-width: 1100px; 
-  padding: 30px;
+/* ==========================================================================
+   Menú Lateral Izquierdo (Sidebar)
+   ========================================================================== */
+.sidebar {
+  width: 280px;
+  background-color: var(--sidebar-bg);
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  padding: 30px 20px;
+  box-shadow: 4px 0 10px rgba(0, 0, 0, 0.05);
   box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.sidebar-brand {
+  text-align: center;
+  margin-bottom: 45px;
+}
+
+.sidebar-brand h2 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffc107; /* Tono dorado institucional */
+  letter-spacing: 1px;
+}
+
+.sidebar-brand p {
+  margin: 5px 0 0 0;
+  font-size: 13px;
+  color: var(--sidebar-text);
+  font-weight: 500;
+}
+
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sidebar-link {
+  background: none;
+  border: none;
+  color: var(--sidebar-text);
+  text-align: left;
+  padding: 14px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: var(--radius-inner);
+  transition: var(--transition);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-link:hover {
+  background-color: var(--sidebar-hover);
+  color: #ffffff;
+}
+
+/* Pestaña Activa */
+.sidebar-link.active {
+  background-color: var(--entrada-color);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.3);
+}
+
+/* ==========================================================================
+   Área de Contenido Principal (Derecha)
+   ========================================================================== */
+.main-content-wrapper {
+  flex: 1;
+  padding: 40px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
 }
 
 .card {
@@ -65,19 +136,28 @@ body {
   flex-direction: column;
 }
 
+/* Layout específico para contener las vistas individuales */
+.content-card-view {
+  width: 100%;
+  max-width: 580px; /* Tamaño ideal y controlado para un formulario único */
+  box-sizing: border-box;
+  margin-top: 10px;
+}
+
 /* ==========================================================================
    Encabezado Principal
    ========================================================================== */
 .main-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 35px;
+  width: 100%;
 }
 
 .main-header h1 {
   font-size: 28px;
   font-weight: 800;
   color: var(--text-main);
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
 }
 
 .main-header p {
@@ -88,28 +168,19 @@ body {
 }
 
 /* ==========================================================================
-   Grid Lateral (Dos Columnas)
+   Estructura interna de las vistas activas
    ========================================================================== */
-.flex-sections-container {
-  display: flex;
-  gap: 30px; 
-  flex-wrap: wrap; 
-}
-
-.column-section {
-  flex: 1 1 calc(50% - 15px); 
-  min-width: 320px; 
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-inner);
-  padding: 28px;
-  background-color: #fff;
+.view-active {
+  width: 100%;
+  background-color: transparent;
+  border: none;
+  padding: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
 }
 
-/* Títulos de Sección (Centrados, Oscuros y Fuertes) */
-.column-section h2 {
+.view-active h2 {
   font-size: 16px;
   font-weight: 800;         
   color: var(--text-main);    
@@ -123,8 +194,16 @@ body {
 .form-column {
   display: flex;
   flex-direction: column;
-  flex-grow: 1; 
-  justify-content: space-between; 
+  gap: 4px;
+}
+
+/* Estilos para el logo en la vista de salida */
+.logo-salida {
+  display: block;          
+  max-width: 240px;        
+  height: auto;            
+  margin: 0 auto 30px auto; 
+  opacity: 1;            
 }
 
 /* ==========================================================================
@@ -174,30 +253,18 @@ body {
   border-style: dashed;
 }
 
-/* Ajustes Columna de Salida */
-/* Ajustes Columna de Salida */
+/* Ajustes particulares de Salida */
 .section-salida {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start; /* Alinea el título y logo arriba */
-  align-items: center;       /* Centra todo horizontalmente */
+  align-items: center;       
 }
 
 .section-salida .form-column {
-  width: 100%;               /* Asegura que el formulario ocupe el ancho completo */
-  margin-top: auto;          /* Empuja el formulario hacia abajo si hay espacio */
-}
-
-
-
-
-.section-salida {
-  justify-content: center; 
+  width: 100%;               
 }
 
 .group-salida-center {
-  margin-top: auto;
-  margin-bottom: 40px;
+  margin-top: 10px;
+  margin-bottom: 30px;
 }
 
 .input-grande {
@@ -207,7 +274,7 @@ body {
 }
 
 /* ==========================================================================
-   Botones de Acción (Texto en Negrita)
+   Botones de Acción
    ========================================================================== */
 .btn {
   width: 100%;
@@ -250,7 +317,6 @@ body {
 .btn-excel {
   background-color: var(--excel-color);
   color: white;
-  margin-top: 20px;
 }
 
 .btn-excel:hover {
@@ -264,29 +330,21 @@ body {
 }
 
 /* ==========================================================================
-   Panel de Administración (para descargar el Excel)
+   Animación de Transición de Pestañas
    ========================================================================== */
-.admin-footer {
-  text-align: center;
-  margin-top: 40px;
+.animate-fade-in {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.admin-footer h2 {
-  font-size: 15px;
-  font-weight: 800;          
-  color: var(--text-main);    
-  margin-top: 0;
-  margin-bottom: 20px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.divider {
-  border: 0;
-  height: 1px;
-  background: var(--border-color);
-  margin-top: 0;
-  margin-bottom: 28px;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ==========================================================================

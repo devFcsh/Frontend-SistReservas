@@ -2,16 +2,19 @@ import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import './App.css'; 
 
-
-
 const CARRERAS = [
-  "Economia",
-  "Administracion de empresas",
-  "Arqueologia",
-  "Auditoria y gestion"
+  "Economía",
+  "Administración de empresas",
+  "Arqueología",
+  "Turismo",
+  "Otra carrera",
+  "Auditoría y gestión"
 ];
 
 function App() {
+  // Estado para controlar la pestaña activa de la izquierda
+  const [vistaActiva, setVistaActiva] = useState('entrada'); // 'entrada' | 'salida' | 'admin'
+
   // Estados para los formularios
   const [entrada, setEntrada] = useState({ matricula: '', nombre: '', apellido: '', carrera: CARRERAS[0] });
   const [matriculaSalida, setMatriculaSalida] = useState('');
@@ -121,99 +124,133 @@ function App() {
         </div>
       )}
 
-      <div className="card main-layout">
+      {/* MENÚ LATERAL IZQUIERDO */}
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <h2>FCSH</h2>
+          <p>Laboratorio L002</p>
+        </div>
+        <nav className="sidebar-menu">
+          <button 
+            className={`sidebar-link ${vistaActiva === 'entrada' ? 'active' : ''}`}
+            onClick={() => setVistaActiva('entrada')}
+          >
+            📥 Registro de Entrada
+          </button>
+          <button 
+            className={`sidebar-link ${vistaActiva === 'salida' ? 'active' : ''}`}
+            onClick={() => setVistaActiva('salida')}
+          >
+            📤 Registro de Salida
+          </button>
+          <button 
+            className={`sidebar-link ${vistaActiva === 'admin' ? 'active' : ''}`}
+            onClick={() => setVistaActiva('admin')}
+          >
+            ⚙️ Panel de Administración
+          </button>
+        </nav>
+      </aside>
+
+      {/* CONTENIDO PRINCIPAL DINÁMICO */}
+      <main className="main-content-wrapper">
         <header className="main-header">
           <h1>Sistema de Reservas</h1>
           <p>Control de Ingreso y Salida de Alumnos</p>
         </header>
 
-        <div className="flex-sections-container">
+        <div className="content-card">
           
-          {/* SECCIÓN IZQUIERDA: REGISTRO DE ENTRADA */}
-          <section className="column-section section-entrada">
-            <h2>Registro de Entrada</h2>
-            <form onSubmit={handleEntradaSubmit} className="form-column">
-              <div className="form-group">
-                <label>Matrícula</label>
-                <input 
-                  type="text" name="matricula" className="form-input"
-                  placeholder="Ej. 202410123" value={entrada.matricula} 
-                  onChange={handleInputChange} required 
-                />
-              </div>
-
-              <div className="form-group-row">
+          {/* MOSTRAR ENTRADA */}
+          {vistaActiva === 'entrada' && (
+            <section className="column-section section-entrada single-view animate-fade-in">
+              <h2>Registro de Entrada</h2>
+              <form onSubmit={handleEntradaSubmit} className="form-column">
                 <div className="form-group">
-                  <label>Nombre</label>
+                  <label>Matrícula</label>
                   <input 
-                    type="text" name="nombre" className="form-input"
-                    placeholder="Nombre" value={entrada.nombre} 
+                    type="text" name="matricula" className="form-input"
+                    placeholder="Ej. 202410123" value={entrada.matricula} 
                     onChange={handleInputChange} required 
                   />
                 </div>
+
+                <div className="form-group-row">
+                  <div className="form-group">
+                    <label>Nombre</label>
+                    <input 
+                      type="text" name="nombre" className="form-input"
+                      placeholder="Nombre" value={entrada.nombre} 
+                      onChange={handleInputChange} required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Apellido</label>
+                    <input 
+                      type="text" name="apellido" className="form-input"
+                      placeholder="Apellido" value={entrada.apellido} 
+                      onChange={handleInputChange} required 
+                    />
+                  </div>
+                </div>
+                
                 <div className="form-group">
-                  <label>Apellido</label>
+                  <label>Carrera</label>
+                  <select name="carrera" className="form-select" value={entrada.carrera} onChange={handleInputChange}>
+                    {CARRERAS.map((c, index) => <option key={index} value={c}>{c}</option>)}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>Laboratorio Asignado</label>
+                  <input type="text" className="form-input input-disabled" value="L002" disabled />
+                </div>
+
+                <button type="submit" className="btn btn-entrada">
+                  Confirmar Entrada
+                </button>
+              </form>
+            </section>
+          )}
+
+          {/* MOSTRAR SALIDA */}
+          {vistaActiva === 'salida' && (
+            <section className="column-section section-salida single-view animate-fade-in">
+              <h2>Registro de Salida</h2>
+              <img src="/logo1.png" alt="Logo Institucional" className="logo-salida" />
+              <form onSubmit={handleSalidaSubmit} className="form-column">
+                <div className="form-group group-salida-center">
+                  <label>Matrícula</label>
                   <input 
-                    type="text" name="apellido" className="form-input"
-                    placeholder="Apellido" value={entrada.apellido} 
-                    onChange={handleInputChange} required 
+                    type="text" className="form-input input-grande"
+                    placeholder="Ingrese Matrícula para Salida" 
+                    value={matriculaSalida} 
+                    onChange={(e) => setMatriculaSalida(e.target.value)} 
+                    required 
                   />
                 </div>
+                <button type="submit" className="btn btn-salida">
+                  Registrar Salida
+                </button>
+              </form>
+            </section>
+          )}
+
+          {/* MOSTRAR PANEL DE ADMINISTRACIÓN */}
+          {vistaActiva === 'admin' && (
+            <section className="admin-view-section single-view animate-fade-in">
+              <h2>Panel de Administración</h2>
+              <p>Generación de reportes detallados del uso del Laboratorio L002.</p>
+              <div className="admin-actions-container">
+                <button onClick={descargarExcel} className="btn btn-excel btn-large">
+                  📊 Descargar Reporte Completo (Excel)
+                </button>
               </div>
-              
-              <div className="form-group">
-                <label>Carrera</label>
-                <select name="carrera" className="form-select" value={entrada.carrera} onChange={handleInputChange}>
-                  {CARRERAS.map((c, index) => <option key={index} value={c}>{c}</option>)}
-                </select>
-              </div>
+            </section>
+          )}
 
-              <div className="form-group">
-                <label>Laboratorio Asignado</label>
-                <input type="text" className="form-input input-disabled" value="L002" disabled />
-              </div>
-
-              <button type="submit" className="btn btn-entrada">
-                Confirmar Entrada
-              </button>
-            </form>
-          </section>
-
-          {/* SECCIÓN DERECHA: REGISTRO DE SALIDA */}
-          <section className="column-section section-salida">
-            <h2>Registro de Salida</h2>
-
-            <img src="/logo1.png" alt="Logo Institucional" className="logo-salida" />
-
-
-
-            <form onSubmit={handleSalidaSubmit} className="form-column">
-              <div className="form-group group-salida-center">
-                <label>Matrícula</label>
-                <input 
-                  type="text" className="form-input input-grande"
-                  placeholder="Ingrese Matrícula para Salida" 
-                  value={matriculaSalida} 
-                  onChange={(e) => setMatriculaSalida(e.target.value)} 
-                  required 
-                />
-              </div>
-              <button type="submit" className="btn btn-salida">
-                Registrar Salida
-              </button>
-            </form>
-          </section>
         </div>
-
-        {/* PANEL DE ADMINISTRACIÓN INFERIOR */}
-        <footer className="admin-footer">
-          <hr className="divider" />
-          <h2>Panel de Administración</h2>
-          <button onClick={descargarExcel} className="btn btn-excel btn-large">
-            📊 Descargar Reporte Completo (Excel)
-          </button>
-        </footer>
-      </div>
+      </main>
     </div>
   );
 }
