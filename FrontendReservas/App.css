@@ -474,3 +474,45 @@ body {
   background-color: #f0fdf4 !important; /* Fondo verde muy suave */
   transition: all 0.3s ease;
 }
+
+
+/* ==========================================================================
+   Estilos para el Panel de Equipos
+   ========================================================================== */
+.equipos-grid {
+  margin-top: 20px;
+  width: 100%;
+}
+
+.equipo-card {
+  background-color: #f8fafc;
+  border: 1px solid var(--border-color) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.equipo-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--entrada-color) !important;
+}
+
+/* Opcional: Si quieres que el estado "Disponible" tenga un estilo más limpio */
+.equipo-card div {
+  font-size: 0.75rem !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: #dcfce7;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.equipo-card.ocupado {
+  border-color: #ef4444 !important;
+  background-color: #fff1f2 !important;
+}
