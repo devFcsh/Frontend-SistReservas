@@ -126,22 +126,23 @@ body {
   justify-content: flex-start;
 }
 
-.card {
+/* Tarjeta contenedora de las vistas individuales */
+.content-card-view {
+  width: 100%;
+  max-width: 580px; /* Tamaño ideal controlado para formularios */
   background: var(--bg-card);
   border-radius: var(--radius);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow);
   padding: 40px;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Layout específico para contener las vistas individuales */
-.content-card-view {
-  width: 100%;
-  max-width: 580px; /* Tamaño ideal y controlado para un formulario único */
   box-sizing: border-box;
   margin-top: 10px;
+  transition: max-width 0.3s ease-in-out;
+}
+
+/* Ampliación especial de la tarjeta para alojar la tabla admin */
+.content-card-view.wide-view {
+  max-width: 960px;
 }
 
 /* ==========================================================================
@@ -423,8 +424,8 @@ body {
    ========================================================================== */
 .table-container {
   width: 100%;
-  max-width: 900px; /* Le da más margen a la tabla en pantallas grandes */
-  overflow-x: auto;  /* Permite scroll si la pantalla es muy chica */
+  max-width: 900px; 
+  overflow-x: auto;  
   margin-top: 20px;
   border-radius: 8px;
   border: 1px solid var(--border-color);
@@ -440,7 +441,7 @@ body {
 }
 
 .admin-table th {
-  background-color: #0f172a; /* Mismo Slate oscuro del sidebar */
+  background-color: #0f172a; 
   color: #ffffff;
   padding: 12px 16px;
   font-weight: 600;
@@ -453,7 +454,7 @@ body {
 }
 
 .admin-table tbody tr:hover {
-  background-color: #f8fafc; /* Efecto hover en las filas */
+  background-color: #f8fafc; 
 }
 
 /* Badge dinámico para "En uso" */
@@ -465,4 +466,11 @@ body {
   font-size: 12px;
   font-weight: 700;
   display: inline-block;
+}
+
+/* Clase para resaltar campos auto-rellenados */
+.form-input.auto-filled {
+  border-color: #16a34a !important; /* Borde verde */
+  background-color: #f0fdf4 !important; /* Fondo verde muy suave */
+  transition: all 0.3s ease;
 }

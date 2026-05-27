@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import './App.css'; 
 
@@ -24,8 +24,6 @@ function App() {
   });
   const [matriculaSalida, setMatriculaSalida] = useState('');
   const [toast, setToast] = useState({ visible: false, mensaje: '', tipo: '' });
-
-  // NUEVO ESTADO: Para almacenar los datos de la tabla en el panel de admin
   const [datosTabla, setDatosTabla] = useState([]);
 
   const mostrarToast = (mensaje, tipo) => {
@@ -38,6 +36,41 @@ function App() {
   const handleInputChange = (e) => {
     setEntrada({ ...entrada, [e.target.name]: e.target.value });
   };
+
+  // ==========================================================================
+  // EFECTO DE AUTOCOMPLETADO AUTOMÁTICO AL ESCRIBIR LA MATRÍCULA
+  // ==========================================================================
+  useEffect(() => {
+    const buscarHistorialAlumno = async () => {
+      // Se ejecuta la búsqueda si la matrícula tiene una longitud coherente (ej: 9 caracteres)
+      if (entrada.matricula.trim().length >= 9) {
+        try {
+          const response = await fetch(`http://localhost:5128/api/alumno/${entrada.matricula.trim()}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.encontrado) {
+              // Sincroniza y rellena los campos del formulario respetando variaciones de capitalización
+              setEntrada(prev => ({
+                ...prev,
+                nombre: data.nombre || data.Nombre || '',
+                apellido: data.apellido || data.Apellido || ''
+              }));
+              mostrarToast("✨ Alumno encontrado en el historial. Campos rellenados.", 'entrada-success');
+            }
+          }
+        } catch (error) {
+          console.error("Error al consultar el historial del alumno:", error);
+        }
+      }
+    };
+
+    // Pequeño retardo (debounce) para evitar ráfagas de peticiones innecesarias al servidor mientras se teclea
+    const timeoutId = setTimeout(() => {
+      buscarHistorialAlumno();
+    }, 150); // ms después de que el usuario deja de escribir
+
+    return () => clearTimeout(timeoutId);
+  }, [entrada.matricula]);
 
   const handleEntradaSubmit = async (e) => {
     e.preventDefault();
@@ -81,7 +114,6 @@ function App() {
     }
   };
 
-  // NUEVA FUNCIÓN: Obtiene los datos del backend para mostrarlos en pantalla
   const consultarDatosTabla = async () => {
     try {
       const response = await fetch('http://localhost:5128/api/reporte');
@@ -117,9 +149,10 @@ function App() {
         'Matrícula': row.matricula,
         'Carrera': row.carrera,
         'Equipo Asignado': row.equipo || 'N/A',
-        'Hora de Inicio': row.hora_inicio,
-        'Hora de Salida': row.hora_salida ? row.hora_salida : 'En uso',
-        'Tiempo de Uso (Minutos)': row.tiempo_promedio !== null ? `${row.tiempo_promedio}` : 'N/A'
+        'Fecha': row.fecha,
+        'Hora de Inicio': row.horaInicio,
+        'Hora de Salida': row.horaSalida ? row.horaSalida : 'En uso',
+        'Tiempo de Uso (Minutos)': row.tiempoPromedio !== null ? `${row.tiempoPromedio}` : 'N/A'
       }));
 
       const hoja = XLSX.utils.json_to_sheet(datosFormateados);
@@ -182,11 +215,12 @@ function App() {
           <p>Control de Ingreso y Salida de Alumnos</p>
         </header>
 
-        <div className="content-card">
+        {/* CONTENEDOR FLEX QUE ADAPTA EL ANCHO DE ACUERDO A LA VISTA */}
+        <div className={vistaActiva === 'admin' ? "content-card-view wide-view" : "content-card-view"}>
           
           {/* MOSTRAR ENTRADA */}
           {vistaActiva === 'entrada' && (
-            <section className="column-section section-entrada single-view animate-fade-in">
+            <section className="view-active section-entrada animate-fade-in">
               <h2>Registro de Entrada</h2>
               <form onSubmit={handleEntradaSubmit} className="form-column">
                 <div className="form-group">
@@ -202,9 +236,10 @@ function App() {
                   <div className="form-group">
                     <label>Nombre</label>
                     <input 
-                      type="text" name="nombre" className="form-input"
+                      type="text" name="nombre"
+                      className={`form-input ${entrada.nombre ? 'auto-filled' : ''}`} // Agregamos la clase dinámica
                       placeholder="Nombre" value={entrada.nombre} 
-                      onChange={handleInputChange} required 
+                      onChange={handleInputChange} required
                     />
                   </div>
                   <div className="form-group">
@@ -247,7 +282,7 @@ function App() {
 
           {/* MOSTRAR SALIDA */}
           {vistaActiva === 'salida' && (
-            <section className="column-section section-salida single-view animate-fade-in">
+            <section className="view-active section-salida animate-fade-in">
               <h2>Registro de Salida</h2>
               <img src="/logo1.png" alt="Logo Institucional" className="logo-salida" />
               <form onSubmit={handleSalidaSubmit} className="form-column">
@@ -270,11 +305,12 @@ function App() {
 
           {/* MOSTRAR PANEL DE ADMINISTRACIÓN */}
           {vistaActiva === 'admin' && (
-            <section className="admin-view-section single-view animate-fade-in">
+            <section className="view-active admin-view-section animate-fade-in">
               <h2>Panel de Administración</h2>
-              <p>Generación de reportes detallados del uso del Laboratorio L002.</p>
+              <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '20px' }}>
+                Generación de reportes detallados del uso del Laboratorio L002.
+              </p>
               
-              {/* Contenedor de Botones alineados en fila */}
               <div className="admin-actions-container" style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginBottom: '25px', flexWrap: 'wrap' }}>
                 <button onClick={consultarDatosTabla} className="btn btn-entrada btn-large">
                   📋 Visualizar Tabla
@@ -295,9 +331,10 @@ function App() {
                         <th>Matrícula</th>
                         <th>Carrera</th>
                         <th>Equipo</th>
+                        <th>Fecha</th>
                         <th>Hora Inicio</th>
                         <th>Hora Salida</th>
-                        <th>Tiempo (Min)</th>
+                        <th>Tiempo</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -308,9 +345,10 @@ function App() {
                           <td>{row.matricula}</td>
                           <td>{row.carrera}</td>
                           <td>{row.equipo || 'N/A'}</td>
-                          <td>{row.hora_inicio}</td>
-                          <td>{row.hora_salida ? row.hora_salida : <span className="status-badge">En uso</span>}</td>
-                          <td>{row.tiempo_promedio !== null ? `${row.tiempo_promedio}` : 'N/A'}</td>
+                          <td>{row.fecha}</td>
+                          <td>{row.horaInicio}</td>
+                          <td>{row.horaSalida ? row.horaSalida : <span className="status-badge">En uso</span>}</td>
+                          <td>{row.tiempoPromedio !== null ? `${row.tiempoPromedio} ` : 'N/A'}</td>
                         </tr>
                       ))}
                     </tbody>
