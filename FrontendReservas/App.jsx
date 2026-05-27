@@ -21,6 +21,7 @@ const CARRERAS = [
 
 ];
 
+const PERIODOS = ["I PAO", "II PAO", "PAE"];
 
 const EQUIPOS = Array.from({ length: 46 }, (_, index) => `Equipo ${index + 1}`);
 
@@ -30,17 +31,12 @@ function App() {
   const [vistaActiva, setVistaActiva] = useState('entrada');
 
   const [entrada, setEntrada] = useState({
-
     matricula: '',
-
     nombre: '',
-
     apellido: '',
-
     carrera: CARRERAS[0],
-
+    periodo: PERIODOS[0],
     equipo: EQUIPOS[0]
-
   });
 
   const [matriculaSalida, setMatriculaSalida] = useState('');
@@ -193,6 +189,41 @@ function App() {
 
   };
 
+  // funcion para manejar los equipos cuando hay clases
+  const manejarEnClase = async () => {
+    try {
+      const response = await fetch('http://localhost:5128/api/en-clase', { method: 'POST' });
+      if (response.ok) {
+        mostrarToast("Todos los equipos marcados como ocupados", 'entrada-success');
+        fetch('http://localhost:5128/api/equipos-estado')
+          .then(res => res.json())
+          .then(data => setEquiposOcupados(data));
+      } else {
+        mostrarToast("Error al procesar el estado en clase", 'error');
+      }
+    } catch (error) {
+      mostrarToast("Error de conexión", 'error');
+    }
+  };
+
+
+  //funcion para manejar los equipos cuando se acabaron las clases
+  const manejarFinalizarClase = async () => {
+    try {
+      const response = await fetch('http://localhost:5128/api/finalizar-clase', { method: 'PUT' });
+      if (response.ok) {
+        mostrarToast("Clase finalizada, equipos liberados", 'salida-success');
+        // Recargar el estado
+        const res = await fetch('http://localhost:5128/api/equipos-estado');
+        const data = await res.json();
+        setEquiposOcupados(data);
+      } else {
+        mostrarToast("Error al finalizar la clase", 'error');
+      }
+    } catch (error) {
+      mostrarToast("Error de conexión", 'error');
+    }
+  };
 
   const handleSalidaSubmit = async (e) => {
 
@@ -287,7 +318,8 @@ function App() {
 
       }
 
-
+      
+      
       const datosFormateados = datos.map(row => ({
 
         'Nombre': row.nombre,
@@ -524,6 +556,14 @@ function App() {
 
 
                   <div className="form-group">
+                    <label>Periodo</label>
+                    <select name="periodo" className="form-select" value={entrada.periodo} onChange={handleInputChange}>
+                      {PERIODOS.map((p, index) => <option key={index} value={p}>{p}</option>)}
+                    </select>
+                  </div>
+
+
+                  <div className="form-group">
 
                     <label>Equipo Asignado</label>
 
@@ -668,6 +708,8 @@ function App() {
 
                         <th>Tiempo</th>
 
+                        <th>Periodo</th>
+
                       </tr>
 
                     </thead>
@@ -696,6 +738,9 @@ function App() {
 
                           <td>{row.tiempoPromedio !== null ? `${row.tiempoPromedio} ` : 'N/A'}</td>
 
+                          <td>{row.periodo !== null ? `${row.periodo} ` : 'N/A'}</td>
+
+
                         </tr>
 
                       ))}
@@ -716,7 +761,28 @@ function App() {
           {/* NUEVA SECCIÓN DE EQUIPOS */}
           {vistaActiva === 'equipos' && (
           <section className="view-active animate-fade-in">
-            <h2>Panel de Equipos</h2>
+            
+            
+            {/* Boton de "en clase" y "finalizar clase*/}
+            <div className="equipos-header-container">
+              <h2>Panel de Equipos</h2>
+              <div className="botones-container"> 
+                
+                <button 
+                  onClick={manejarEnClase} 
+                  className="btn btn-entrada" 
+                >
+                  💻 En Clase
+                </button>
+                <button onClick={manejarFinalizarClase} className="btn btn-finalizar-clase">
+                  🔓 Fin Clase
+                </button>
+            </div>
+          </div>
+
+            {/* Grid de equipos */}
+
+
             <div className="equipos-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px' }}>
               {EQUIPOS.map((equipo, index) => {
                 const esOcupado = equiposOcupados.includes(equipo);
@@ -739,6 +805,8 @@ function App() {
               })}
             </div>
           </section>
+
+          
         )}
 
 

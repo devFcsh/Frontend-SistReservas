@@ -502,7 +502,7 @@ body {
   border-color: var(--entrada-color) !important;
 }
 
-/* Opcional: Si quieres que el estado "Disponible" tenga un estilo más limpio */
+/* Opcional: para el estado "Disponible" tenga un estilo más limpio */
 .equipo-card div {
   font-size: 0.75rem !important;
   font-weight: 700;
@@ -515,4 +515,71 @@ body {
 .equipo-card.ocupado {
   border-color: #ef4444 !important;
   background-color: #fff1f2 !important;
+}
+
+/* Contenedor del título y botón */
+.equipos-header-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 30px;
+  gap: 15px;
+}
+
+.botones-container {
+  display: flex;
+  gap: 20px;              /* Espacio entre el botón azul y el verde */
+  justify-content: center;
+}
+
+
+.btn-en-clase, .btn-finalizar-clase {
+  margin: 0 !important; /* Quitamos márgenes extra por si acaso */
+  min-width: 140px;     /* Opcional: para que ambos tengan un ancho mínimo uniforme */
+}
+
+
+/* Botón Iniciar En Clase */
+.btn-en-clase {
+  width: auto !important;
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  background-color: #7c3aed !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+}
+
+
+.btn-en-clase:hover {
+  background-color: #6d28d9 !important;
+}
+
+/* Etiqueta de estado en la tarjeta */
+.status-label {
+  font-size: 0.7rem;
+  margin-top: 5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+
+.btn-finalizar-clase {
+  width: auto !important;
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  background-color: #10b981 !important; /* Verde */
+  color: white !important;
+  border: none !important;
+  border-radius: 8px !important;
+  cursor: pointer;
+}
+
+
+
+.btn-finalizar-clase:hover {
+  background-color: #059669 !important;
 }
