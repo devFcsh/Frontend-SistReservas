@@ -211,7 +211,7 @@ function App() {
       {/* CONTENIDO PRINCIPAL DINÁMICO */}
       <main className="main-content-wrapper">
         <header className="main-header">
-          <h1>Sistema de Reservas</h1>
+          <h1>Sistema de Préstamo</h1>
           <p>Control de Ingreso y Salida de Alumnos</p>
         </header>
 
@@ -234,7 +234,7 @@ function App() {
 
                 <div className="form-group-row">
                   <div className="form-group">
-                    <label>Nombre</label>
+                    <label>Nombres</label>
                     <input 
                       type="text" name="nombre"
                       className={`form-input ${entrada.nombre ? 'auto-filled' : ''}`} // Agregamos la clase dinámica
@@ -243,7 +243,7 @@ function App() {
                     />
                   </div>
                   <div className="form-group">
-                    <label>Apellido</label>
+                    <label>Apellidos</label>
                     <input 
                       type="text" name="apellido" className="form-input"
                       placeholder="Apellido" value={entrada.apellido} 
@@ -274,7 +274,7 @@ function App() {
                 </div>
 
                 <button type="submit" className="btn btn-entrada">
-                  Confirmar Entrada
+                  Registrar Entrada
                 </button>
               </form>
             </section>
@@ -326,8 +326,8 @@ function App() {
                   <table className="admin-table">
                     <thead>
                       <tr>
-                        <th>Nombre</th>
-                        <th>Apellido</th>
+                        <th>Nombres</th>
+                        <th>Apellidos</th>
                         <th>Matrícula</th>
                         <th>Carrera</th>
                         <th>Equipo</th>

@@ -1,4 +1,4 @@
-# Frontend-SistReservas
+# Frontend-SistPréstamos
 
 Requisitos Previos
 
