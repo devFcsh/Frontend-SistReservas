@@ -329,6 +329,7 @@ function App() {
         'Matrícula': row.matricula,
 
         'Carrera': row.carrera,
+        'Periodo': row.periodo || 'N/A',
 
         'Equipo Asignado': row.equipo || 'N/A',
 
