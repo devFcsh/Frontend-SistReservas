@@ -26,6 +26,7 @@ const PERIODOS = ["I PAO", "II PAO", "PAE"];
 const EQUIPOS = Array.from({ length: 46 }, (_, index) => `Equipo ${index + 1}`);
 
 
+
 function App() {
 
   const [vistaActiva, setVistaActiva] = useState('entrada');
@@ -339,7 +340,8 @@ function App() {
 
         'Hora de Salida': row.horaSalida ? row.horaSalida : 'En uso',
 
-        'Tiempo de Uso (Minutos)': row.tiempoPromedio !== null ? `${row.tiempoPromedio}` : 'N/A'
+        'Tiempo de Uso (Minutos)': row.tiempoPromedio !== null ? `${row.tiempoPromedio}` : 'N/A',
+        'Año': row.Año
 
       }));
 
@@ -711,6 +713,8 @@ function App() {
 
                         <th>Periodo</th>
 
+                        <th>Año</th>
+
                       </tr>
 
                     </thead>
@@ -740,6 +744,8 @@ function App() {
                           <td>{row.tiempoPromedio !== null ? `${row.tiempoPromedio} ` : 'N/A'}</td>
 
                           <td>{row.periodo !== null ? `${row.periodo} ` : 'N/A'}</td>
+
+                          <td>{row.fecha ? row.fecha.split('-')[0] : 'N/A'}</td>
 
 
                         </tr>
