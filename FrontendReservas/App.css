@@ -533,6 +533,8 @@ body {
 }
 
 
+
+
 .btn-en-clase, .btn-finalizar-clase {
   margin: 0 !important; /* Quitamos márgenes extra por si acaso */
   min-width: 140px;     /* Opcional: para que ambos tengan un ancho mínimo uniforme */

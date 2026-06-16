@@ -25,9 +25,17 @@ const PERIODOS = ["I PAO", "II PAO", "PAE"];
 
 const EQUIPOS = Array.from({ length: 46 }, (_, index) => `Equipo ${index + 1}`);
 
+const DOCENTES = [
+  "Juan José Rizzo Rodríguez",
+  "Oscar Emigdio Mendoza Macias",
+  "José Martin Bustamante León",
+  "Washington Asdrual Macias Rendon",
+  "Katia Lorena Rodriguez Morales"
+];
 
 
 function App() {
+  const [claseEnCurso, setClaseEnCurso] = useState(false);
 
   const [vistaActiva, setVistaActiva] = useState('entrada');
 
@@ -37,7 +45,8 @@ function App() {
     apellido: '',
     carrera: CARRERAS[0],
     periodo: PERIODOS[0],
-    equipo: EQUIPOS[0]
+    equipo: EQUIPOS[0],
+    docente: DOCENTES[0]
   });
 
   const [matriculaSalida, setMatriculaSalida] = useState('');
@@ -192,9 +201,30 @@ function App() {
 
   // funcion para manejar los equipos cuando hay clases
   const manejarEnClase = async () => {
+    // 1. Primero, obtenemos el estado actual de los equipos
     try {
-      const response = await fetch('http://localhost:5128/api/en-clase', { method: 'POST' });
+        const res = await fetch('http://localhost:5128/api/equipos-estado');
+        const ocupados = await res.json();
+
+        // 2. Si el array de ocupados no está vacío, lanzamos la advertencia
+        if (ocupados.length > 0) {
+            mostrarToast("⚠️ Registre la salida del estudiante antes de iniciar clase", 'error');
+            return; // Cortamos la ejecución aquí
+        }
+
+        // 3. Si llega aquí, es porque todas están disponibles, procedemos:
+    
+    
+      const payload = {
+          Docente: entrada.docente, // El nombre seleccionado del select
+          Periodo: entrada.periodo  // "PAO I" o "PAO II"
+      };
+
+    
+      const response = await fetch('http://localhost:5128/api/en-clase', { method: 'POST' , headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)});
       if (response.ok) {
+        setClaseEnCurso(true);
         mostrarToast("Todos los equipos marcados como ocupados", 'entrada-success');
         fetch('http://localhost:5128/api/equipos-estado')
           .then(res => res.json())
@@ -213,6 +243,7 @@ function App() {
     try {
       const response = await fetch('http://localhost:5128/api/finalizar-clase', { method: 'PUT' });
       if (response.ok) {
+        setClaseEnCurso(false);
         mostrarToast("Clase finalizada, equipos liberados", 'salida-success');
         // Recargar el estado
         const res = await fetch('http://localhost:5128/api/equipos-estado');
@@ -442,6 +473,14 @@ function App() {
 
             ⚙️ Panel de Administración
 
+          </button>
+
+          {/* Panel de reserva clases*/}
+          <button 
+            className={`sidebar-link ${vistaActiva === 'reservaClases' ? 'active' : ''}`} 
+            onClick={() => setVistaActiva('reservaClases')}
+          >
+            📅 Reserva para Clases
           </button>
 
           {/* Paenel de Equipos */}
@@ -764,28 +803,55 @@ function App() {
 
           )}
 
+          {/*SECCION DE REGISTRO PARA CLASES */}
+         
+          {vistaActiva === 'reservaClases' && (
+            <section className="view-active animate-fade-in">
+              <h2>Reserva de Equipos para Clases</h2>
+              
+              <div className="equipos-header-container" style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                  <select 
+                    className="form-select" 
+                    value={entrada.docente || DOCENTES[0]}
+                    onChange={handleInputChange} 
+                    name="docente"
+                  >
+                    {DOCENTES.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
 
-          {/* NUEVA SECCIÓN DE EQUIPOS */}
+                  <select 
+                    className="form-select" 
+                    value={entrada.periodo || PERIODOS[0]}
+                    onChange={handleInputChange} 
+                    name="periodo"
+                  >
+                    {PERIODOS.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+
+                <div className="botones-container" style={{ display: 'flex', gap: '10px' }}>
+                  <button onClick={manejarEnClase} className="btn btn-entrada">
+                    💻 En Clase
+                  </button>
+                  <button onClick={manejarFinalizarClase} className="btn btn-finalizar-clase">
+                    🔓 Fin Clase
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
+
+
+          {/*  SECCIÓN DE EQUIPOS/PANEL DE EQUIPOS */}
           {vistaActiva === 'equipos' && (
           <section className="view-active animate-fade-in">
             
             
-            {/* Boton de "en clase" y "finalizar clase*/}
-            <div className="equipos-header-container">
-              <h2>Panel de Equipos</h2>
-              <div className="botones-container"> 
-                
-                <button 
-                  onClick={manejarEnClase} 
-                  className="btn btn-entrada" 
-                >
-                  💻 En Clase
-                </button>
-                <button onClick={manejarFinalizarClase} className="btn btn-finalizar-clase">
-                  🔓 Fin Clase
-                </button>
-            </div>
-          </div>
+
+            
+            <h2 style={{ marginTop: '25px', color: 'var(--text-main)' }}>Panel de Equipos</h2>
+          
 
             {/* Grid de equipos */}
 
