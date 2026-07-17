@@ -538,6 +538,7 @@ function App() {
                     placeholder="Ingrese Matrícula para Salida"
                     value={matriculaSalida}
                     onChange={(e) => setMatriculaSalida(e.target.value)}
+                    maxLength={9}
                     required
                   />
                 </div>
