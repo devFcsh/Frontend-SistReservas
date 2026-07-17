@@ -11,7 +11,6 @@ const CARRERAS = [
   "Otra carrera"
 ];
 const PERIODOS = ["I PAO", "II PAO", "PAE"];
-const EQUIPOS = Array.from({ length: 46 }, (_, index) => `Equipo ${index + 1}`);
 
 const DOCENTES = [
   "Juan José Rizzo Rodríguez",
@@ -20,6 +19,25 @@ const DOCENTES = [
   "Washington Asdrual Macias Rendon",
   "Katia Lorena Rodriguez Morales"
 ];
+
+// ==========================================================================
+// Validaciones de formulario (mismas reglas que el backend, aquí solo para
+// mejorar la experiencia de uso filtrando mientras se escribe). El backend
+// sigue siendo la fuente de verdad: rechaza cualquier valor inválido aunque
+// llegue una petición manipulada directo a la API.
+// ==========================================================================
+const soloNumeros = (valor, maxLen) => valor.replace(/[^0-9]/g, '').slice(0, maxLen);
+const soloLetras = (valor) => valor.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s]/g, '');
+
+// Colores/etiquetas para cada estado de equipo devuelto por el backend
+// (GET /api/equipos). Ver EquipoEstadoHelper.cs en el backend para la
+// definición exacta de cada estado.
+const ESTADO_EQUIPO_STYLES = {
+  'Disponible':    { bg: '#dcfce7', color: '#15803d' },
+  'Ocupado':       { bg: '#fee2e2', color: '#b91c1c' },
+  'No disponible': { bg: '#ede9fe', color: '#5b21b6' },
+  'No colocado':   { bg: '#f3f4f6', color: '#6b7280' },
+};
 
 function App() {
   const [claseEnCurso, setClaseEnCurso] = useState(false);
@@ -30,20 +48,28 @@ function App() {
     apellido: '',
     carrera: CARRERAS[0],
     periodo: PERIODOS[0],
-    equipo: EQUIPOS[0],
+    equipo: '',
     docente: DOCENTES[0]
   });
   const [matriculaSalida, setMatriculaSalida] = useState('');
   const [toast, setToast] = useState({ visible: false, mensaje: '', tipo: '' });
   const [datosTabla, setDatosTabla] = useState([]);
 
-  // estado para los equipos ocupados
-  const [equiposOcupados, setEquiposOcupados] = useState([]);
+  // Equipos que pueden reservarse AHORA MISMO (colocados + con IP + encendidos
+  // + libres), para llenar el <select> del formulario de entrada. Viene de
+  // GET /api/equipos/disponibles.
+  const [equiposDisponibles, setEquiposDisponibles] = useState([]);
 
-  // ==========================================================================
-  // NUEVO: estado para el semáforo de RED (ping a cada PC: encendida/apagada)
-  // Es independiente de equiposOcupados (que viene de la base de datos/reservas)
-  // ==========================================================================
+  // Catálogo completo de equipos con su estado calculado por el backend
+  // (Disponible / Ocupado / No disponible / No colocado), para el Panel de
+  // Equipos. Viene de GET /api/equipos.
+  const [equiposPanel, setEquiposPanel] = useState([]);
+  const [advertenciaPanel, setAdvertenciaPanel] = useState('');
+
+  // Semáforo de red (punto naranja/morado) — estado crudo del ping por
+  // equipo, tal como estaba en la versión original. Viene de
+  // GET /api/equipos-estado-red. Se mantiene EXPLÍCITO y sin modificar a
+  // pedido, además del badge de estado del Panel de Equipos.
   const [equiposRed, setEquiposRed] = useState([]);
 
   const mostrarToast = (mensaje, tipo) => {
@@ -55,6 +81,19 @@ function App() {
 
   const handleInputChange = (e) => {
     setEntrada({ ...entrada, [e.target.name]: e.target.value });
+  };
+
+  // Filtra mientras el usuario escribe: matrícula solo dígitos (máx. 9)
+  const handleMatriculaChange = (e) => {
+    setEntrada({ ...entrada, matricula: soloNumeros(e.target.value, 9) });
+  };
+
+  // Filtra mientras el usuario escribe: nombre/apellido solo letras y espacios
+  const handleNombreChange = (e) => {
+    setEntrada({ ...entrada, nombre: soloLetras(e.target.value) });
+  };
+  const handleApellidoChange = (e) => {
+    setEntrada({ ...entrada, apellido: soloLetras(e.target.value) });
   };
 
   // ==========================================================================
@@ -89,20 +128,72 @@ function App() {
     return () => clearTimeout(timeoutId);
   }, [entrada.matricula]);
 
-  // efecto para cargar el estado de los equipos
+  // ==========================================================================
+  // Cargar equipos DISPONIBLES para el formulario de entrada. Se refresca
+  // periódicamente mientras esa vista está activa, para reflejar cambios de
+  // estado (ping, cierre automático, otro usuario reservando) casi en vivo.
+  // ==========================================================================
   useEffect(() => {
-    if (vistaActiva === 'equipos') {
-      fetch('http://localhost:5128/api/equipos-estado')
+    if (vistaActiva !== 'entrada') return;
+
+    const cargarDisponibles = () => {
+      fetch('http://localhost:5128/api/equipos/disponibles')
         .then(res => res.json())
-        .then(data => setEquiposOcupados(data))
-        .catch(err => console.error("Error al cargar estado de equipos", err));
-    }
+        .then(payload => {
+          // El backend puede responder un array directo, o
+          // { advertencia, equipos: [] } si hubo un problema consultando la
+          // base de datos (ver EquiposController.ObtenerDisponibles).
+          const data = Array.isArray(payload) ? payload : payload.equipos ?? [];
+          if (payload.advertencia) {
+            console.warn("Aviso del backend (equipos/disponibles):", payload.advertencia);
+          }
+          setEquiposDisponibles(data);
+          // Si el equipo seleccionado ya no está disponible, o no hay
+          // selección todavía, se ajusta automáticamente al primero libre.
+          setEntrada(prev => {
+            const sigueDisponible = data.some(eq => eq.nombre === prev.equipo);
+            if (sigueDisponible) return prev;
+            return { ...prev, equipo: data.length > 0 ? data[0].nombre : '' };
+          });
+        })
+        .catch(err => console.error("Error al cargar equipos disponibles", err));
+    };
+
+    cargarDisponibles();
+    const intervalo = setInterval(cargarDisponibles, 10000);
+    return () => clearInterval(intervalo);
   }, [vistaActiva]);
 
   // ==========================================================================
-  // NUEVO: efecto para cargar y refrescar el estado de RED (ping) de los equipos
-  // Solo corre mientras la vista "equipos" está activa, y se repite cada 5s
-  // para que el semáforo se mantenga actualizado sin recargar la página.
+  // Cargar el catálogo completo de equipos (con estado) para el Panel de
+  // Equipos. Se refresca cada 5s mientras esa vista está activa.
+  // ==========================================================================
+  useEffect(() => {
+    if (vistaActiva !== 'equipos') return;
+
+    const cargarPanel = () => {
+      fetch('http://localhost:5128/api/equipos')
+        .then(res => res.json())
+        .then(payload => {
+          // El backend puede responder un array directo, o
+          // { advertencia, equipos: [] } si no pudo confirmar ocupación
+          // contra la base de datos (ver EquiposController.ObtenerEquipos).
+          const data = Array.isArray(payload) ? payload : payload.equipos ?? [];
+          setEquiposPanel(data);
+          setAdvertenciaPanel(payload.advertencia || '');
+        })
+        .catch(err => console.error("Error al cargar el panel de equipos", err));
+    };
+
+    cargarPanel();
+    const intervalo = setInterval(cargarPanel, 5000);
+    return () => clearInterval(intervalo);
+  }, [vistaActiva]);
+
+  // ==========================================================================
+  // Semáforo de red: carga y refresca el estado de ping (equipos-estado-red)
+  // exactamente como en la versión original. Solo corre mientras la vista
+  // "equipos" está activa, y se repite cada 5s.
   // ==========================================================================
   useEffect(() => {
     if (vistaActiva !== 'equipos') return;
@@ -125,8 +216,25 @@ function App() {
     return () => clearInterval(intervalo);
   }, [vistaActiva]);
 
+  // ==========================================================================
+  // Helper para obtener el color del semáforo de red de un equipo dado
+  // (idéntico al original: "naranja" | "morado" | null). Si el equipo no
+  // aparece en equiposRed (sin IP configurada), no se muestra semáforo.
+  // ==========================================================================
+  const obtenerColorRed = (nombreEquipo) => {
+    const info = equiposRed.find(e => e.equipo === nombreEquipo);
+    if (!info) return null;
+    return info.estado === 'Encendida' ? 'naranja' : 'morado';
+  };
+
   const handleEntradaSubmit = async (e) => {
     e.preventDefault();
+
+    if (!entrada.equipo) {
+      mostrarToast("No hay ningún equipo disponible para reservar en este momento.", 'error');
+      return;
+    }
+
     try {
       const response = await fetch('http://localhost:5128/api/entrada', {
         method: 'POST',
@@ -136,7 +244,11 @@ function App() {
       const data = await response.json();
       if (response.ok) {
         mostrarToast(data.message, 'entrada-success');
-        setEntrada({ matricula: '', nombre: '', apellido: '', carrera: CARRERAS[0], equipo: EQUIPOS[0] });
+        setEntrada(prev => ({
+          matricula: '', nombre: '', apellido: '',
+          carrera: CARRERAS[0], periodo: prev.periodo,
+          equipo: '', docente: prev.docente
+        }));
       } else {
         mostrarToast("Error: " + (data.error || "Datos inválidos"), 'error');
       }
@@ -168,10 +280,7 @@ function App() {
       });
       if (response.ok) {
         setClaseEnCurso(true);
-        mostrarToast("Todos los equipos marcados como ocupados", 'entrada-success');
-        fetch('http://localhost:5128/api/equipos-estado')
-          .then(res => res.json())
-          .then(data => setEquiposOcupados(data));
+        mostrarToast("Todos los equipos disponibles marcados como ocupados", 'entrada-success');
       } else {
         mostrarToast("Error al procesar el estado en clase", 'error');
       }
@@ -187,9 +296,6 @@ function App() {
       if (response.ok) {
         setClaseEnCurso(false);
         mostrarToast("Clase finalizada, equipos liberados", 'salida-success');
-        const res = await fetch('http://localhost:5128/api/equipos-estado');
-        const data = await res.json();
-        setEquiposOcupados(data);
       } else {
         mostrarToast("Error al finalizar la clase", 'error');
       }
@@ -274,16 +380,6 @@ function App() {
     }
   };
 
-  // ==========================================================================
-  // NUEVO: helper para obtener el color del semáforo de red de un equipo dado
-  // Si el equipo no tiene IP configurada en el backend, no aparece en equiposRed
-  // y se devuelve null (no se muestra semáforo para ese equipo).
-  // ==========================================================================
-  const obtenerColorRed = (nombreEquipo) => {
-    const info = equiposRed.find(e => e.equipo === nombreEquipo);
-    return info ? info.color : null; // "naranja" | "morado" | null
-  };
-
   return (
     <div className="app-container">
 
@@ -361,7 +457,9 @@ function App() {
                   <input
                     type="text" name="matricula" className="form-input"
                     placeholder="Ej. 202410123" value={entrada.matricula}
-                    onChange={handleInputChange} required
+                    onChange={handleMatriculaChange}
+                    inputMode="numeric" maxLength={9}
+                    required
                   />
                 </div>
 
@@ -372,7 +470,7 @@ function App() {
                       type="text" name="nombre"
                       className={`form-input ${entrada.nombre ? 'auto-filled' : ''}`}
                       placeholder="Nombre" value={entrada.nombre}
-                      onChange={handleInputChange} required
+                      onChange={handleNombreChange} required
                     />
                   </div>
                   <div className="form-group">
@@ -380,7 +478,7 @@ function App() {
                     <input
                       type="text" name="apellido" className="form-input"
                       placeholder="Apellido" value={entrada.apellido}
-                      onChange={handleInputChange} required
+                      onChange={handleApellidoChange} required
                     />
                   </div>
                 </div>
@@ -402,9 +500,16 @@ function App() {
 
                   <div className="form-group">
                     <label>Equipo Asignado</label>
-                    <select name="equipo" className="form-select" value={entrada.equipo} onChange={handleInputChange}>
-                      {EQUIPOS.map((e, index) => <option key={index} value={e}>{e}</option>)}
-                    </select>
+                    {equiposDisponibles.length > 0 ? (
+                      <select name="equipo" className="form-select" value={entrada.equipo} onChange={handleInputChange}>
+                        {equiposDisponibles.map((e) => <option key={e.id} value={e.nombre}>{e.nombre}</option>)}
+                      </select>
+                    ) : (
+                      <input
+                        type="text" className="form-input input-disabled"
+                        value="No hay equipos disponibles" disabled
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -413,7 +518,7 @@ function App() {
                   <input type="text" className="form-input input-disabled" value="L002" disabled />
                 </div>
 
-                <button type="submit" className="btn btn-entrada">
+                <button type="submit" className="btn btn-entrada" disabled={equiposDisponibles.length === 0}>
                   Registrar Entrada
                 </button>
               </form>
@@ -545,17 +650,38 @@ function App() {
 
               <h2 style={{ marginTop: '25px', color: 'var(--text-main)' }}>Panel de Equipos</h2>
 
+              {advertenciaPanel && (
+                <div style={{
+                  background: '#fff3cd',
+                  color: '#856404',
+                  border: '1px solid #ffeeba',
+                  borderRadius: '6px',
+                  padding: '10px 15px',
+                  marginBottom: '15px',
+                  fontSize: '0.85rem',
+                  textAlign: 'center'
+                }}>
+                  ⚠️ {advertenciaPanel}
+                </div>
+              )}
+
+              {equiposPanel.length === 0 && (
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                  Aún no hay equipos registrados en el catálogo.
+                </p>
+              )}
+
               {/* Grid de equipos */}
               <div className="equipos-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px' }}>
-                {EQUIPOS.map((equipo, index) => {
-                  const esOcupado = equiposOcupados.includes(equipo);
-                  const colorRed = obtenerColorRed(equipo); // "naranja" | "morado" | null
+                {equiposPanel.map((eq) => {
+                  const estilo = ESTADO_EQUIPO_STYLES[eq.estado] || ESTADO_EQUIPO_STYLES['No disponible'];
+                  const colorRed = obtenerColorRed(eq.nombre); // "naranja" | "morado" | null
 
                   return (
-                    <div key={index} className={`equipo-card ${esOcupado ? 'ocupado' : ''}`}
+                    <div key={eq.id} className={`equipo-card ${eq.ocupado ? 'ocupado' : ''}`}
                       style={{ padding: '15px', border: '1px solid #ddd', borderRadius: '8px', textAlign: 'center', position: 'relative' }}>
 
-                      {/* NUEVO: semáforo de red - punto de color en la esquina superior derecha */}
+                      {/* Semáforo de red - punto de color en la esquina superior derecha */}
                       {colorRed && (
                         <span
                           title={colorRed === 'naranja' ? 'PC encendida (responde ping)' : 'PC apagada (no responde ping)'}
@@ -572,19 +698,19 @@ function App() {
                         />
                       )}
 
-                      {equipo}
+                      {eq.nombre}
                       <div style={{
                         fontSize: '0.7rem',
                         marginTop: '5px',
-                        color: esOcupado ? '#b91c1c' : '#15803d',
-                        background: esOcupado ? '#fee2e2' : '#dcfce7',
+                        color: estilo.color,
+                        background: estilo.bg,
                         padding: '2px 6px',
                         borderRadius: '4px'
                       }}>
-                        {esOcupado ? 'Ocupado' : 'Disponible'}
+                        {eq.estado}
                       </div>
 
-                      {/* NUEVO: etiqueta textual del estado de red, debajo de Ocupado/Disponible */}
+                      {/* Etiqueta textual del estado de red, debajo del badge de estado */}
                       {colorRed && (
                         <div style={{
                           fontSize: '0.65rem',
