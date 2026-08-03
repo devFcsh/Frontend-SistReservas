@@ -96,6 +96,11 @@ function App() {
     setEntrada({ ...entrada, apellido: soloLetras(e.target.value) });
   };
 
+  // Filtra mientras el usuario escribe: matrícula de salida solo dígitos y hasta 9 caracteres.
+  const handleMatriculaSalidaChange = (e) => {
+    setMatriculaSalida(soloNumeros(e.target.value, 9));
+  };
+
   // ==========================================================================
   // EFECTO DE AUTOCOMPLETADO AUTOMÁTICO AL ESCRIBIR LA MATRÍCULA
   // ==========================================================================
@@ -306,6 +311,13 @@ function App() {
 
   const handleSalidaSubmit = async (e) => {
     e.preventDefault();
+
+    const matriculaValida = /^[12][0-9]{0,8}$/.test(matriculaSalida);
+    if (!matriculaValida) {
+      mostrarToast("La matrícula debe contener solo números y comenzar con 1 o 2", 'error');
+      return;
+    }
+
     try {
       const response = await fetch('http://localhost:5128/api/salida', {
         method: 'PUT',
@@ -537,7 +549,7 @@ function App() {
                     type="text" className="form-input input-grande"
                     placeholder="Ingrese Matrícula para Salida"
                     value={matriculaSalida}
-                    onChange={(e) => setMatriculaSalida(e.target.value)}
+                    onChange={handleMatriculaSalidaChange}
                     maxLength={9}
                     required
                   />
