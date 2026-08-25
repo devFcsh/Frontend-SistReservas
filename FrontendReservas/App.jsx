@@ -40,11 +40,32 @@ const CARRERAS = [
 const PERIODOS = ["I PAO", "II PAO", "PAE"];
 
 const DOCENTES = [
-  "Juan José Rizzo Rodríguez",
-  "Oscar Emigdio Mendoza Macias",
-  "José Martin Bustamante León",
-  "Washington Asdrual Macias Rendon",
-  "Katia Lorena Rodriguez Morales"
+  
+  "Benigno Alfredo Armijos De La Cruz",
+  "Nelson Rodrigo Layedra Quinteros",
+  "Olga Martin", "Mariela Perez", 
+  "Maria Elena Romero Montoya", 
+  "Lady Maria Soto Navarrete", 
+  "Victor Hugo Gonzalez Jaramillo", 
+  "Silvia Mariela Mendez Prado", 
+  "Maria Fernanda Salas", 
+  "Katia Rodriguez", 
+  "Ivan Marcelo Saltos Andrade", 
+  "Maria Cecilia Moreno Abramowicz", 
+  "Lina Rosa Enderica Izquierdo", 
+  "Christian Vera Alcivar", 
+  "Juan José Rizzo Rodríguez", 
+  "Oscar Emigdio Mendoza Macias", 
+  "José Martin Bustamante León", 
+  "Washington Asdrual Macias Rendon", 
+  "Katia Lorena Rodriguez Morales", 
+  "Federico Francisco Bocca Ruiz", 
+  "Gabriela Elizabeth Vilela Govea", 
+  "Jose Gabriel Castillo Garcia", 
+  "Luis Javier Ruiz Velez", 
+  "Raizza Belen Maquizaca Najera", 
+  "Silvia Amira Maluk Uriguen", 
+  "Alan Kondratova"
 ];
 
 const MESES_NOMBRES = [
@@ -762,7 +783,7 @@ function App() {
                 <section className="view-active animate-fade-in">
                   <h2>Panel Estadística</h2>
                   <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: '15px' }}>
-                    Indicadores clave del Laboratorio L002.
+                    Laboratorio L002.
                   </p>
 
                   <div style={{
