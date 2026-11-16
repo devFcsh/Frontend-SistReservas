@@ -8,7 +8,6 @@ Antes de ejecutar el proyecto, asegúrese de tener instalado:
 React
 Node.js versión 18 o superior. (Probado con: Node v22 y Node v24)
 npm (incluido con Node.js)
-npm install chart.js react-chartjs-2 html2pdf.js
 ----Backend----
 ASP.NET
 .NET SDK 9.0
@@ -16,12 +15,10 @@ ASP.NET
 Instalación y Ejecución
 Frontend---------------------------------------------------------------------
 1. Ingresar a la carpeta del frontend
-cd Frontend-SistReservas
-2. Instalar dependencias
+cd FrontendReservas
+2. Instalar dependencias (incluye xlsx, chart.js, react-chartjs-2, recharts, html2pdf.js, jspdf y html2canvas)
 npm install
-3. Instalar librería XLSX
-npm install xlsx
-4. Ejecutar el proyecto
+3. Ejecutar el proyecto
 npm run dev
 Backend---------------------------------------------------------------------
 1. Ingresar a la carpeta del backend

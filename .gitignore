@@ -1,0 +1,19 @@
+# Dependencias (se reinstalan con `npm install`)
+node_modules/
+
+# Build y caché de Vite
+dist/
+.vite/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Variables de entorno locales
+.env.local
+.env.*.local
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
