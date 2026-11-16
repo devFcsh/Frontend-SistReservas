@@ -27,3 +27,21 @@ cd BackendReservas
 dotnet restore
 3. Ejecutar el backend
 dotnet run
+
+Trabajo en la rama develop
+---------------------------------------------------------------------
+Los cambios en curso se realizan en la rama develop (creada a partir de produccion).
+La carpeta node_modules ya NO se guarda en el repositorio (está en .gitignore),
+por lo que es obligatorio instalar las dependencias después de cambiarse de rama.
+
+1. Descargar y cambiarse a la rama develop
+git fetch
+git switch develop
+2. Instalar dependencias
+cd FrontendReservas
+npm install
+3. Ejecutar el proyecto
+npm run dev
+
+Nota: cada vez que hagas git pull y alguien haya agregado o actualizado una librería
+(cambios en package.json o package-lock.json), vuelve a ejecutar npm install.
