@@ -16,6 +16,11 @@ import {
 } from 'chart.js';
 import { Bar, Line } from 'react-chartjs-2';
 import './App.css';
+import { api, leerSesion, limpiarSesion, EVENTO_SESION_CERRADA } from './api.js';
+import Login from './Login.jsx';
+import Modal from './Modal.jsx';
+import PanelUsuarios from './PanelUsuarios.jsx';
+import CambiarPassword from './CambiarPassword.jsx';
 
 ChartJS.register(
   CategoryScale,
@@ -108,6 +113,20 @@ const obtenerMinutosDeUso = (row) => {
   return 0;
 };
 
+// Texto de error para el usuario: diferencia "sin conexión" de un error enviado por la API
+const mensajeError = (error, porDefecto) => {
+  if (!error?.message || error.message === 'Failed to fetch') {
+    return error?.message === 'Failed to fetch' ? 'Error al conectar con el servidor' : porDefecto;
+  }
+  return error.message;
+};
+
+// Las filas creadas por "En Clase" usan esta matrícula y no permiten cambiarla
+const MATRICULA_CLASE = '000000000';
+
+const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const dosDigitos = (n) => String(n).padStart(2, '0');
+
 // Opciones globales para mantener los gráficos responsivos dentro de las tarjetas
 const chartOptionsBase = {
   responsive: true,
@@ -117,7 +136,8 @@ const chartOptionsBase = {
   }
 };
 
-function App() {
+function Sistema({ sesion, onLogout }) {
+  const esAdmin = sesion.rol === 'Admin';
   const [claseEnCurso, setClaseEnCurso] = useState(false);
   const [vistaActiva, setVistaActiva] = useState('entrada');
   const [entrada, setEntrada] = useState({
@@ -142,6 +162,41 @@ function App() {
   const [equiposRed, setEquiposRed] = useState([]);
 
   const dashboardRef = useRef(null);
+
+  // Edición / eliminación de filas del reporte
+  const [filaEditando, setFilaEditando] = useState(null);
+  const [filaEliminando, setFilaEliminando] = useState(null);
+  const [guardandoFila, setGuardandoFila] = useState(false);
+
+  // Hora oficial: se pide una vez al backend y se guarda la diferencia con el reloj del navegador
+  const [desfaseHora, setDesfaseHora] = useState(0);
+  const [ahora, setAhora] = useState(() => new Date());
+
+  useEffect(() => {
+    api('/hora', { publica: true })
+      .then(datos => {
+        if (!datos?.fechaHora) return;
+        // fechaHora viene en hora de Ecuador sin zona; se interpreta como "hora de pared"
+        const oficial = new Date(datos.fechaHora).getTime();
+        if (!isNaN(oficial)) setDesfaseHora(oficial - Date.now());
+      })
+      .catch(err => console.error("Error al obtener la hora oficial", err));
+  }, []);
+
+  useEffect(() => {
+    const intervalo = setInterval(() => setAhora(new Date(Date.now() + desfaseHora)), 1000);
+    setAhora(new Date(Date.now() + desfaseHora));
+    return () => clearInterval(intervalo);
+  }, [desfaseHora]);
+
+  const cerrarSesion = async () => {
+    try {
+      await api('/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error("Error al cerrar sesión en el servidor", error);
+    }
+    onLogout();
+  };
 
   const mostrarToast = (mensaje, tipo) => {
     setToast({ visible: true, mensaje, tipo });
@@ -174,17 +229,14 @@ function App() {
     const buscarHistorialAlumno = async () => {
       if (entrada.matricula.trim().length >= 9) {
         try {
-          const response = await fetch(`http://localhost:5128/api/alumno/${entrada.matricula.trim()}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.encontrado) {
-              setEntrada(prev => ({
-                ...prev,
-                nombre: data.nombre || data.Nombre || '',
-                apellido: data.apellido || data.Apellido || ''
-              }));
-              mostrarToast("✨ Alumno encontrado en el historial.", 'entrada-success');
-            }
+          const data = await api(`/alumno/${entrada.matricula.trim()}`);
+          if (data?.encontrado) {
+            setEntrada(prev => ({
+              ...prev,
+              nombre: data.nombre || data.Nombre || '',
+              apellido: data.apellido || data.Apellido || ''
+            }));
+            mostrarToast("✨ Alumno encontrado en el historial.", 'entrada-success');
           }
         } catch (error) {
           console.error("Error al consultar historial:", error);
@@ -203,8 +255,7 @@ function App() {
     if (vistaActiva !== 'entrada') return;
 
     const cargarDisponibles = () => {
-      fetch('http://localhost:5128/api/equipos/disponibles')
-        .then(res => res.json())
+      api('/equipos/disponibles')
         .then(payload => {
           const data = Array.isArray(payload) ? payload : payload.equipos ?? [];
           setEquiposDisponibles(data);
@@ -226,8 +277,7 @@ function App() {
     if (vistaActiva !== 'equipos') return;
 
     const cargarPanel = () => {
-      fetch('http://localhost:5128/api/equipos')
-        .then(res => res.json())
+      api('/equipos')
         .then(payload => {
           const data = Array.isArray(payload) ? payload : payload.equipos ?? [];
           setEquiposPanel(data);
@@ -245,8 +295,7 @@ function App() {
     if (vistaActiva !== 'equipos') return;
 
     const cargarEstadoRed = () => {
-      fetch('http://localhost:5128/api/equipos-estado-red')
-        .then(res => res.json())
+      api('/equipos-estado-red')
         .then(data => {
           const lista = Array.isArray(data) ? data : data.equipos ?? [];
           setEquiposRed(lista);
@@ -279,63 +328,48 @@ function App() {
     }
 
     try {
-      const response = await fetch('http://localhost:5128/api/entrada', {
+      const data = await api('/entrada', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(entrada)
       });
-      const data = await response.json();
-      if (response.ok) {
-        mostrarToast(data.message, 'entrada-success');
-        setEntrada(prev => ({
-          matricula: '', nombre: '', apellido: '',
-          carrera: CARRERAS[0], periodo: prev.periodo,
-          equipo: '', docente: prev.docente
-        }));
-      } else {
-        mostrarToast("Error: " + (data.error || "Datos inválidos"), 'error');
-      }
+      mostrarToast(data?.message, 'entrada-success');
+      setEntrada(prev => ({
+        matricula: '', nombre: '', apellido: '',
+        carrera: CARRERAS[0], periodo: prev.periodo,
+        equipo: '', docente: prev.docente
+      }));
     } catch (error) {
-      mostrarToast("Error al conectar con el servidor", 'error');
+      mostrarToast("Error: " + mensajeError(error, "Datos inválidos"), 'error');
     }
   };
 
   const manejarEnClase = async () => {
     try {
-      const res = await fetch('http://localhost:5128/api/equipos-estado');
-      const ocupados = await res.json();
+      const ocupados = await api('/equipos-estado');
 
-      if (ocupados.length > 0) {
+      if (ocupados?.length > 0) {
         mostrarToast("⚠️ Registre la salida de estudiantes antes de iniciar clase", 'error');
         return;
       }
 
-      const response = await fetch('http://localhost:5128/api/en-clase', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+      await api('/en-clase', {
+        method: 'POST',
         body: JSON.stringify({ Docente: entrada.docente, Periodo: entrada.periodo })
       });
-      if (response.ok) {
-        setClaseEnCurso(true);
-        mostrarToast("Equipos disponibles marcados como ocupados", 'entrada-success');
-      } else {
-        mostrarToast("Error al procesar el estado en clase", 'error');
-      }
+      setClaseEnCurso(true);
+      mostrarToast("Equipos disponibles marcados como ocupados", 'entrada-success');
     } catch (error) {
-      mostrarToast("Error de conexión", 'error');
+      mostrarToast(mensajeError(error, "Error al procesar el estado en clase"), 'error');
     }
   };
 
   const manejarFinalizarClase = async () => {
     try {
-      const response = await fetch('http://localhost:5128/api/finalizar-clase', { method: 'PUT' });
-      if (response.ok) {
-        setClaseEnCurso(false);
-        mostrarToast("Clase finalizada, equipos liberados", 'salida-success');
-      } else {
-        mostrarToast("Error al finalizar clase", 'error');
-      }
+      await api('/finalizar-clase', { method: 'PUT' });
+      setClaseEnCurso(false);
+      mostrarToast("Clase finalizada, equipos liberados", 'salida-success');
     } catch (error) {
-      mostrarToast("Error de conexión", 'error');
+      mostrarToast(mensajeError(error, "Error al finalizar clase"), 'error');
     }
   };
 
@@ -347,27 +381,20 @@ function App() {
     }
 
     try {
-      const response = await fetch('http://localhost:5128/api/salida', {
+      const data = await api('/salida', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ matricula: matriculaSalida })
       });
-      const data = await response.json();
-      if (response.ok) {
-        mostrarToast(data.message, 'salida-success');
-        setMatriculaSalida('');
-      } else {
-        mostrarToast(data.message || "Error al registrar salida", 'error');
-      }
+      mostrarToast(data?.message, 'salida-success');
+      setMatriculaSalida('');
     } catch (error) {
-      mostrarToast("Error al conectar con el servidor", 'error');
+      mostrarToast(mensajeError(error, "Error al registrar salida"), 'error');
     }
   };
 
   const consultarDatosTabla = async (notificar = true) => {
     try {
-      const response = await fetch('http://localhost:5128/api/reporte');
-      const datos = await response.json();
+      const datos = (await api('/reporte')) ?? [];
 
       if (datos.length === 0) {
         if (notificar) mostrarToast("No hay datos disponibles", 'error');
@@ -378,14 +405,13 @@ function App() {
       setDatosTabla(datos);
       if (notificar) mostrarToast("📋 Datos cargados correctamente", 'entrada-success');
     } catch (error) {
-      if (notificar) mostrarToast("Error al obtener los datos", 'error');
+      if (notificar) mostrarToast(mensajeError(error, "Error al obtener los datos"), 'error');
     }
   };
 
   const descargarExcel = async () => {
     try {
-      const response = await fetch('http://localhost:5128/api/reporte');
-      const datos = await response.json();
+      const datos = (await api('/reporte')) ?? [];
 
       if (datos.length === 0) {
         mostrarToast("No hay datos para exportar", 'error');
@@ -412,7 +438,69 @@ function App() {
       XLSX.writeFile(libro, "Reporte_Laboratorio_L002.xlsx");
       mostrarToast("📊 Reporte descargado con éxito", 'entrada-success');
     } catch (error) {
-      mostrarToast("Error al generar reporte Excel", 'error');
+      mostrarToast(mensajeError(error, "Error al generar reporte Excel"), 'error');
+    }
+  };
+
+  const abrirEdicion = (row) => {
+    setFilaEditando({
+      id: row.id,
+      matricula: row.matricula || '',
+      nombre: row.nombre || '',
+      apellido: row.apellido || '',
+      carrera: row.carrera || CARRERAS[0],
+      periodo: row.periodo || PERIODOS[0],
+      original: row
+    });
+  };
+
+  const handleEdicionChange = (campo, valor) => {
+    setFilaEditando(prev => ({ ...prev, [campo]: valor }));
+  };
+
+  const guardarEdicion = async (e) => {
+    e.preventDefault();
+    const { id, original, ...campos } = filaEditando;
+
+    if (campos.matricula.length !== 9) {
+      mostrarToast("La matrícula debe tener 9 dígitos", 'error');
+      return;
+    }
+
+    // Solo se envían los campos que cambiaron
+    const cambios = Object.fromEntries(
+      Object.entries(campos).filter(([campo, valor]) => (original[campo] ?? '') !== valor)
+    );
+    if (Object.keys(cambios).length === 0) {
+      setFilaEditando(null);
+      return;
+    }
+
+    setGuardandoFila(true);
+    try {
+      const actualizada = await api(`/reservas/${id}`, { method: 'PUT', body: JSON.stringify(cambios) });
+      setDatosTabla(prev => prev.map(r => (r.id === id ? { ...r, ...actualizada } : r)));
+      setFilaEditando(null);
+      mostrarToast("✏️ Registro actualizado", 'entrada-success');
+    } catch (error) {
+      mostrarToast(mensajeError(error, "Error al actualizar el registro"), 'error');
+    } finally {
+      setGuardandoFila(false);
+    }
+  };
+
+  const confirmarEliminacion = async () => {
+    const id = filaEliminando.id;
+    setGuardandoFila(true);
+    try {
+      const data = await api(`/reservas/${id}`, { method: 'DELETE' });
+      setDatosTabla(prev => prev.filter(r => r.id !== id));
+      setFilaEliminando(null);
+      mostrarToast(data?.message || "🗑️ Registro eliminado", 'salida-success');
+    } catch (error) {
+      mostrarToast(mensajeError(error, "Error al eliminar el registro"), 'error');
+    } finally {
+      setGuardandoFila(false);
     }
   };
 
@@ -479,7 +567,27 @@ function App() {
             <button className={`sidebar-link ${vistaActiva === 'estadistica' ? 'active' : ''}`} onClick={() => setVistaActiva('estadistica')}>📊 Panel Estadística</button>
             <button className={`sidebar-link ${vistaActiva === 'reservaClases' ? 'active' : ''}`} onClick={() => setVistaActiva('reservaClases')}>📅 Reserva para Clases</button>
             <button className={`sidebar-link ${vistaActiva === 'equipos' ? 'active' : ''}`} onClick={() => setVistaActiva('equipos')}>💻 Panel de Equipos</button>
+            {esAdmin && (
+              <button className={`sidebar-link ${vistaActiva === 'usuarios' ? 'active' : ''}`} onClick={() => setVistaActiva('usuarios')}>👥 Usuarios</button>
+            )}
+            <button className={`sidebar-link ${vistaActiva === 'password' ? 'active' : ''}`} onClick={() => setVistaActiva('password')}>🔑 Mi Contraseña</button>
           </nav>
+
+          <div className="sidebar-footer">
+            <div className="sidebar-reloj">
+              <span className="sidebar-reloj-hora">
+                {dosDigitos(ahora.getHours())}:{dosDigitos(ahora.getMinutes())}:{dosDigitos(ahora.getSeconds())}
+              </span>
+              <span className="sidebar-reloj-fecha">
+                {DIAS_SEMANA[ahora.getDay()]}, {ahora.getDate()} de {MESES_NOMBRES[ahora.getMonth()].toLowerCase()} de {ahora.getFullYear()}
+              </span>
+            </div>
+            <div className="sidebar-usuario">
+              <span className="sidebar-usuario-nombre">👤 {sesion.usuario}</span>
+              <span className={`rol-badge ${esAdmin ? 'admin' : ''}`}>{sesion.rol}</span>
+            </div>
+            <button className="sidebar-link sidebar-logout" onClick={cerrarSesion}>🚪 Cerrar Sesión</button>
+          </div>
         </aside>
 
         <main className="main-content-wrapper">
@@ -488,7 +596,7 @@ function App() {
             <p>Control de Ingreso y Salida de Alumnos</p>
           </header>
 
-          <div className={(vistaActiva === 'admin' || vistaActiva === 'equipos' || vistaActiva === 'estadistica') ? "content-card-view wide-view" : "content-card-view"}>
+          <div className={['admin', 'equipos', 'estadistica', 'usuarios'].includes(vistaActiva) ? "content-card-view wide-view" : "content-card-view"}>
 
             {vistaActiva === 'entrada' && (
               <section className="view-active section-entrada animate-fade-in">
@@ -584,6 +692,7 @@ function App() {
                           <th>Tiempo</th>
                           <th>Periodo</th>
                           <th>Año</th>
+                          <th>Acciones</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -591,7 +700,7 @@ function App() {
                           const mins = obtenerMinutosDeUso(row);
                           const anio = row.Año || (row.fecha ? row.fecha.split('-')[0] : 'N/A');
                           return (
-                            <tr key={index}>
+                            <tr key={row.id ?? index}>
                               <td>{row.nombre}</td>
                               <td>{row.apellido}</td>
                               <td>{row.matricula}</td>
@@ -603,6 +712,14 @@ function App() {
                               <td>{mins > 0 ? `${mins} min` : 'En uso'}</td>
                               <td>{row.periodo !== null ? `${row.periodo}` : 'N/A'}</td>
                               <td>{anio}</td>
+                              <td>
+                                <div className="acciones-fila">
+                                  <button className="btn-accion" onClick={() => abrirEdicion(row)} disabled={row.id == null} title="Editar registro">✏️ Editar</button>
+                                  {esAdmin && (
+                                    <button className="btn-accion peligro" onClick={() => setFilaEliminando(row)} disabled={row.id == null} title="Eliminar registro">🗑️ Eliminar</button>
+                                  )}
+                                </div>
+                              </td>
                             </tr>
                           );
                         })}
@@ -1001,11 +1118,135 @@ function App() {
               </section>
             )}
 
+            {vistaActiva === 'usuarios' && esAdmin && (
+              <PanelUsuarios usuarioActual={sesion.usuario} mostrarToast={mostrarToast} />
+            )}
+
+            {vistaActiva === 'password' && (
+              <CambiarPassword mostrarToast={mostrarToast} />
+            )}
+
           </div>
         </main>
       </div>
+
+      {filaEditando && (
+        <Modal titulo="Editar Registro" onCerrar={() => setFilaEditando(null)}>
+          <form onSubmit={guardarEdicion} className="form-column">
+            <div className="form-group">
+              <label>Matrícula</label>
+              <input
+                type="text"
+                className={`form-input ${filaEditando.original.matricula === MATRICULA_CLASE ? 'input-disabled' : ''}`}
+                value={filaEditando.matricula}
+                onChange={(e) => handleEdicionChange('matricula', soloNumeros(e.target.value, 9))}
+                disabled={filaEditando.original.matricula === MATRICULA_CLASE}
+                inputMode="numeric"
+                maxLength={9}
+                required
+              />
+            </div>
+            <div className="form-group-row">
+              <div className="form-group">
+                <label>Nombres</label>
+                <input type="text" className="form-input" value={filaEditando.nombre}
+                  onChange={(e) => handleEdicionChange('nombre', soloLetras(e.target.value))} required />
+              </div>
+              <div className="form-group">
+                <label>Apellidos</label>
+                <input type="text" className="form-input" value={filaEditando.apellido}
+                  onChange={(e) => handleEdicionChange('apellido', soloLetras(e.target.value))} />
+              </div>
+            </div>
+            <div className="form-group-row">
+              <div className="form-group">
+                <label>Carrera</label>
+                <select className="form-select" value={filaEditando.carrera}
+                  onChange={(e) => handleEdicionChange('carrera', e.target.value)}>
+                  {/* Conserva valores que no están en la lista, como "Reservado por ..." */}
+                  {!CARRERAS.includes(filaEditando.original.carrera) && filaEditando.original.carrera && (
+                    <option value={filaEditando.original.carrera}>{filaEditando.original.carrera}</option>
+                  )}
+                  {CARRERAS.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Periodo</label>
+                <select className="form-select" value={filaEditando.periodo}
+                  onChange={(e) => handleEdicionChange('periodo', e.target.value)}>
+                  {PERIODOS.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+            </div>
+            <p className="modal-nota">
+              Equipo: <strong>{filaEditando.original.equipo || 'N/A'}</strong> · Fecha: <strong>{filaEditando.original.fecha}</strong>.
+              El equipo, las horas y el tiempo de uso los maneja el sistema.
+            </p>
+            <div className="modal-acciones">
+              <button type="button" className="btn btn-excel" onClick={() => setFilaEditando(null)}>Cancelar</button>
+              <button type="submit" className="btn btn-entrada" style={{ marginTop: 0 }} disabled={guardandoFila}>
+                {guardandoFila ? 'Guardando...' : 'Guardar Cambios'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {filaEliminando && (
+        <Modal titulo="Eliminar Registro" onCerrar={() => setFilaEliminando(null)}>
+          <p>
+            ¿Seguro que deseas eliminar el registro de <strong>{filaEliminando.nombre} {filaEliminando.apellido}</strong>
+            {' '}({filaEliminando.matricula}) del <strong>{filaEliminando.fecha}</strong>?
+          </p>
+          {(!filaEliminando.horaSalida || filaEliminando.horaSalida === 'En uso') && (
+            <p className="modal-nota">Este registro está en uso: el {filaEliminando.equipo || 'equipo'} quedará libre de inmediato.</p>
+          )}
+          <p className="modal-nota">Esta acción no se puede deshacer.</p>
+          <div className="modal-acciones">
+            <button className="btn btn-excel" onClick={() => setFilaEliminando(null)}>Cancelar</button>
+            <button className="btn btn-peligro" onClick={confirmarEliminacion} disabled={guardandoFila}>
+              {guardandoFila ? 'Eliminando...' : 'Eliminar'}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
+}
+
+// Punto de entrada: muestra el login si no hay sesión y, si la hay, el sistema
+function App() {
+  const [sesion, setSesion] = useState(() => leerSesion());
+
+  // Cualquier 401 de la API cierra la sesión y regresa al login
+  useEffect(() => {
+    const alCerrarse = () => setSesion(null);
+    window.addEventListener(EVENTO_SESION_CERRADA, alCerrarse);
+    return () => window.removeEventListener(EVENTO_SESION_CERRADA, alCerrarse);
+  }, []);
+
+  // Al abrir la app, confirma que la sesión sigue viva y refresca el rol
+  useEffect(() => {
+    if (!sesion) return;
+    api('/auth/me')
+      .then(datos => {
+        if (!datos) return;
+        if (datos.rol !== sesion.rol || datos.usuario !== sesion.usuario) {
+          localStorage.setItem('usuario', datos.usuario);
+          localStorage.setItem('rol', datos.rol);
+          setSesion(prev => (prev ? { ...prev, usuario: datos.usuario, rol: datos.rol } : prev));
+        }
+      })
+      .catch(err => console.error("No se pudo verificar la sesión", err));
+  }, [sesion?.token]);
+
+  const cerrarSesionLocal = () => {
+    limpiarSesion();
+    setSesion(null);
+  };
+
+  if (!sesion) return <Login onLogin={setSesion} />;
+  return <Sistema key={sesion.token} sesion={sesion} onLogout={cerrarSesionLocal} />;
 }
 
 export default App;
