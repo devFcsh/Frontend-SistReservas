@@ -409,7 +409,9 @@ function Sistema({ sesion, onLogout }) {
     }
   };
 
+  // Solo el rol Admin puede descargar reportes (el backend también debe validarlo)
   const descargarExcel = async () => {
+    if (!esAdmin) return;
     try {
       const datos = (await api('/reporte')) ?? [];
 
@@ -505,6 +507,7 @@ function Sistema({ sesion, onLogout }) {
   };
 
   const descargarPDF = () => {
+    if (!esAdmin) return;
     const elemento = dashboardRef.current;
     if (!elemento) return;
 
@@ -564,7 +567,9 @@ function Sistema({ sesion, onLogout }) {
             <button className={`sidebar-link ${vistaActiva === 'entrada' ? 'active' : ''}`} onClick={() => setVistaActiva('entrada')}>📥 Registro de Entrada</button>
             <button className={`sidebar-link ${vistaActiva === 'salida' ? 'active' : ''}`} onClick={() => setVistaActiva('salida')}>📤 Registro de Salida</button>
             <button className={`sidebar-link ${vistaActiva === 'admin' ? 'active' : ''}`} onClick={() => setVistaActiva('admin')}>⚙️ Panel de Administración</button>
-            <button className={`sidebar-link ${vistaActiva === 'estadistica' ? 'active' : ''}`} onClick={() => setVistaActiva('estadistica')}>📊 Panel Estadística</button>
+            {esAdmin && (
+              <button className={`sidebar-link ${vistaActiva === 'estadistica' ? 'active' : ''}`} onClick={() => setVistaActiva('estadistica')}>📊 Panel Estadística</button>
+            )}
             <button className={`sidebar-link ${vistaActiva === 'reservaClases' ? 'active' : ''}`} onClick={() => setVistaActiva('reservaClases')}>📅 Reserva para Clases</button>
             <button className={`sidebar-link ${vistaActiva === 'equipos' ? 'active' : ''}`} onClick={() => setVistaActiva('equipos')}>💻 Panel de Equipos</button>
             {esAdmin && (
@@ -673,7 +678,9 @@ function Sistema({ sesion, onLogout }) {
                 </p>
                 <div className="admin-actions-container" style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginBottom: '25px', flexWrap: 'wrap' }}>
                   <button onClick={() => consultarDatosTabla(true)} className="btn btn-entrada btn-large">📋 Visualizar Tabla</button>
-                  <button onClick={descargarExcel} className="btn btn-excel btn-large">📊 Descargar Reporte (Excel)</button>
+                  {esAdmin && (
+                    <button onClick={descargarExcel} className="btn btn-excel btn-large">📊 Descargar Reporte (Excel)</button>
+                  )}
                 </div>
 
                 {datosTabla.length > 0 && (
@@ -730,7 +737,7 @@ function Sistema({ sesion, onLogout }) {
               </section>
             )}
 
-            {vistaActiva === 'estadistica' && (() => {
+            {vistaActiva === 'estadistica' && esAdmin && (() => {
               const aniosDisponibles = Array.from(new Set(
                 datosTabla.map(d => d.Año || (d.fecha ? d.fecha.split('-')[0] : null)).filter(Boolean)
               )).sort((a, b) => b - a);
